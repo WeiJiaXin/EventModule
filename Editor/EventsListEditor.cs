@@ -102,6 +102,6 @@ public partial class EventManagerWindow
 
     private void SelectEventItem(ReorderableList list)
     {
-        Debug.Log(list.list[list.index].ToString());
+        
     }
 }

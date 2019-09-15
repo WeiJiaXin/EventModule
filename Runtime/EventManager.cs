@@ -12,6 +12,7 @@ namespace Lowy.Event
     {
         
     }
+
     public class EventManager
     {
         private static Dictionary<Type, Delegate> _dic2Delegates;

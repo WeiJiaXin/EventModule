@@ -1,21 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using Lowy.Event;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 
-public class WindowContent
-{
-    public int tab = 0;
-    public string cs_path = "Scripts/Event";
-    //
-    public string eventName = "NewEventEve";
-}
-
 public partial class EventManagerWindow : EditorWindow
 {
-    private WindowContent _content;
+    private EventWindowContent _content;
+    private EventSettingContent _setting;
 
     [MenuItem("Window/Lowy/EventManage %e")]
     public static void CreateView()
@@ -34,12 +28,14 @@ public partial class EventManagerWindow : EditorWindow
 
     private void OnEnable()
     {
-        _content = GetContent();
+        _content = EventUtility.GetContent();
+        _setting = EventUtility.GetSetting();
     }
 
     private void OnDisable()
     {
-        SaveContent(_content);
+        EventUtility.SaveContent(_content);
+        EventUtility.SaveSetting(_setting);
     }
 
     private void OnGUI()
@@ -66,23 +62,41 @@ public partial class EventManagerWindow : EditorWindow
 
     private void SettingGUI()
     {
-        EditorGUILayout.BeginHorizontal();
-        _content.cs_path = EditorGUILayout.TextField("File Path：", _content.cs_path);
-        if (GUILayout.Button("Select Event File Path", GUILayout.MaxWidth(150)))
+        //------------------------------
+        //Editor Setting
+        //------------------------------
+        EditorGUILayout.LabelField("Editor Setting:",EditorStyles.boldLabel);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         {
-            string path = SelectPath();
-            if (!string.IsNullOrEmpty(path) && path.Contains(Application.dataPath + "/"))
+            EditorGUILayout.BeginHorizontal();
+            _content.cs_path = EditorGUILayout.TextField("File Path：", _content.cs_path);
+            if (GUILayout.Button("Select Event File Path", GUILayout.MaxWidth(150)))
             {
-                _content.cs_path = path.Replace(Application.dataPath + "/", "");
+                string path = SelectPath();
+                if (!string.IsNullOrEmpty(path) && path.Contains(Application.dataPath + "/"))
+                {
+                    _content.cs_path = path.Replace(Application.dataPath + "/", "");
+                }
+                else if (path != null && path.Contains(Application.dataPath + "/"))
+                {
+                    EditorUtility.DisplayDialog("EventManager",
+                        $"'{path}' Path invalid, path need has '{Application.dataPath}/'", "ok");
+                }
             }
-            else if(path != null && path.Contains(Application.dataPath + "/"))
-            {
-                EditorUtility.DisplayDialog("EventManager",
-                    $"'{path}' Path invalid, path need has '{Application.dataPath}/'", "ok");
-            }
-        }
 
-        EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndHorizontal();
+        }
+        EditorGUILayout.EndVertical();
+        //------------------------------
+        //Runtime Setting
+        //------------------------------
+        EditorGUILayout.LabelField("Runtime Setting:",EditorStyles.boldLabel);
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        {
+            _setting.dispatchExceptionInterrupt =
+                EditorGUILayout.Toggle("调度发生异常时是否中断", _setting.dispatchExceptionInterrupt);
+        }
+        EditorGUILayout.EndVertical();
     }
 
     private void ManagerEventGUI()
@@ -99,7 +113,7 @@ public partial class EventManagerWindow : EditorWindow
             _content.eventName = EditorGUILayout.TextField("Event Name:", _content.eventName);
             if (GUILayout.Button("Add Event", GUILayout.Height(30)))
             {
-                SaveContent(_content);
+                EventUtility.SaveContent(_content);
                 if (CanCreate(_content))
                 {
                     CreateEventFile(_content);
@@ -116,7 +130,7 @@ public partial class EventManagerWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
-    private bool CanCreate(WindowContent content)
+    private bool CanCreate(EventWindowContent content)
     {
         return !File.Exists($"{Application.dataPath}/{content.cs_path}/{content.eventName}.cs");
     }
@@ -126,19 +140,7 @@ public partial class EventManagerWindow : EditorWindow
         return EditorUtility.SaveFolderPanel("Select path", Application.dataPath, "Assets");
     }
 
-    private WindowContent GetContent()
-    {
-        if (PlayerPrefs.HasKey("EVENT_MANAGER_WINDOW_CONTENT_KEY"))
-            return JsonUtility.FromJson<WindowContent>(PlayerPrefs.GetString("EVENT_MANAGER_WINDOW_CONTENT_KEY"));
-        return new WindowContent();
-    }
-
-    private void SaveContent(WindowContent content)
-    {
-        PlayerPrefs.SetString("EVENT_MANAGER_WINDOW_CONTENT_KEY", JsonUtility.ToJson(content));
-    }
-
-    private void CreateEventFile(WindowContent content)
+    private void CreateEventFile(EventWindowContent content)
     {
         string path = $"{Application.dataPath}/{content.cs_path}";
         CreatePath(path);
