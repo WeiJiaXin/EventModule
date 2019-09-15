@@ -67,9 +67,7 @@ public partial class EventManagerWindow : EditorWindow
     private void SettingGUI()
     {
         EditorGUILayout.BeginHorizontal();
-        GUI.enabled = false;
-        EditorGUILayout.TextField("File Path：", _content.cs_path);
-        GUI.enabled = true;
+        _content.cs_path = EditorGUILayout.TextField("File Path：", _content.cs_path);
         if (GUILayout.Button("Select Event File Path", GUILayout.MaxWidth(150)))
         {
             string path = SelectPath();

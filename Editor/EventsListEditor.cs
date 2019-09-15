@@ -2,15 +2,18 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Lowy.Event;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 public partial class EventManagerWindow
 {
     private ReorderableList eventList;
-    private List<string> data;
+    private List<string> names;
+    private Dictionary<string, bool> names2Valid;
 
     private void DrawEventList()
     {
@@ -24,20 +27,42 @@ public partial class EventManagerWindow
         eventList.DoLayoutList();
     }
 
-    private void SelectEventItem(ReorderableList list)
-    {
-        
-    }
-
     private void InitData()
     {
-        data = new List<string> {_content.cs_path,"asdasd"};
-        eventList = new ReorderableList(data, typeof(string));
+        names = FindEvent();
+        names2Valid = CheckValid(names);
+        eventList = new ReorderableList(names, typeof(string));
+    }
+
+    private List<string> FindEvent()
+    {
+        Type[] ts = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes().Where(t => t.GetInterfaces().Contains(typeof(IEvent))))
+            .ToArray();
+        List<string> names=new List<string>(ts.Length);
+        foreach (var type in ts)
+        {
+            names.Add(type.Name);
+        }
+
+        return names;
+    }
+
+    private Dictionary<string,bool> CheckValid(List<string> names)
+    {
+        Dictionary<string,bool> valid=new Dictionary<string, bool>();
+        string path = $"{Application.dataPath}/{_content.cs_path}/{{0}}.cs";
+        foreach (var n in names)
+        {
+            valid.Add(n, File.Exists(String.Format(path, n)));
+        }
+
+        return valid;
     }
 
     private void DrawEventsItem(Rect rect,int index,bool isActive,bool isFocused)
     {
-        var element = data[index];
+        var element = names[index];
         rect.height -= 4;
         rect.width /= 5f;
         rect.width *= 3;
@@ -45,10 +70,38 @@ public partial class EventManagerWindow
         EditorGUI.TextField(rect, element);
         rect.width /= 3f;
         rect.x += rect.width * 3;
-        GUI.Button(rect, "Editor");
-        rect.x += rect.width;
-        GUI.Button(rect, "Remove");
-        Type t = typeof(EventManager);
-        var fs = t.Assembly.GetFiles();
+        if(names2Valid[element])
+        {
+            if (GUI.Button(rect, "Editor"))
+            {
+                AssetDatabase.OpenAsset(
+                    AssetDatabase.LoadAssetAtPath<Object>($"Assets/{_content.cs_path}/{element}.cs"));
+            }
+
+            rect.x += rect.width;
+            if (GUI.Button(rect, "Remove"))
+            {
+                if (EditorUtility.DisplayDialog("警告", $"是否删除{element}事件", "确定", "取消"))
+                {
+                    File.Delete($"{Application.dataPath}/{_content.cs_path}/{element}.cs.meta");
+                    File.Delete($"{Application.dataPath}/{_content.cs_path}/{element}.cs");
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                }
+            }
+        }
+        else
+        {
+            rect.width *= 2;
+            Color color = GUI.color;
+            GUI.color=Color.yellow/1.5f;
+            GUI.Box(rect,"不在指定路径!");
+            GUI.color = color;
+        }
+    }
+
+    private void SelectEventItem(ReorderableList list)
+    {
+        Debug.Log(list.list[list.index].ToString());
     }
 }
