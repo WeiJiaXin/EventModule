@@ -1,0 +1,9 @@
+{
+    "name": "com.lowy.event",
+    "displayName": "Event",
+    "version": "1.0.1",
+    "unity": "2018.3",
+    "description": "实现基本事件需求",
+    "keywords": ["event", "lowy"],
+    "category": "Module"
+}
